@@ -9,9 +9,9 @@
 
 | Họ và Tên | Mã Học Viên | Vai trò chính | Phần việc đảm nhiệm trong dự án |
 |---|---|---|---|
-|  |  |  |  |
-|  |  |  |  |
-|  |  |  |  |
+| Bùi Hoàng Anh |  |  |  |
+| Nguyễn Mai Hoàng Thiện |  |  |  |
+|Nguyễn Tiến Đạt  |  |  |  |
 |  |  |  |  |
 
 > Nhóm copy nguyên file README này về repo của mình, rồi điền bảng trên. Cột **Phần việc đảm nhiệm** ghi càng cụ thể càng tốt.
