@@ -9,7 +9,7 @@
 
 | Họ và Tên | Mã Học Viên | Vai trò chính | Phần việc đảm nhiệm trong dự án |
 |---|---|---|---|
-| Bùi Hoàng Anh |  |  |  |
+| Bùi Hoàng Anh | 2A202602697|  |  |
 | Nguyễn Mai Hoàng Thiện |  |  |  |
 |Nguyễn Tiến Đạt  |  |  |  |
 |  |  |  |  |
