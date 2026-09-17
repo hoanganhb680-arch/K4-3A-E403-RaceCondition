@@ -102,12 +102,24 @@ Loại: [x] Tối ưu tính năng có sẵn  [ ] Tính năng mới
 | 2026-09-17 | `pnpm run build` | Pass |
 
 ## §8. Phân Công & Kế Hoạch
-- Phân công có tên: bổ sung sau.
-- Willing users + kế hoạch validation: bổ sung sau.
-- Multi-prototype: bổ sung sau nếu nhóm quyết định làm thêm phương án.
+| Thành viên | Vai trò | Phạm vi phụ trách |
+|---|---|---|
+| Bùi Hoàng Anh | AI & Quality Evaluation | Phụ trách phần AI: nhận diện câu hỏi, kiểm tra câu hỏi đã được trả lời hay chưa, thiết kế prompt cho model và xử lý fallback khi model lỗi. |
+| Nguyễn Mai Hoàng Thiện | Backend & Data Processing | Phụ trách backend và xử lý dữ liệu: xây dựng các API để frontend gọi, quản lý dữ liệu buổi học trong SQLite, xử lý dữ liệu chat/transcript đầu vào và chuẩn bị dữ liệu cho phần AI tổng hợp câu hỏi. |
+| Nguyễn Tiến Đạt | UI & Demo Flow | Phụ trách phần giao diện và demo: xây dựng dashboard cho giảng viên, màn thời khóa biểu, chat lớp học, màn tổng hợp Top-K câu hỏi, lịch sử bản lưu và luồng demo end-to-end. |
+
+- Willing users + kế hoạch validation:
+  - Mời ít nhất 2 bạn đóng vai giảng viên trong một buổi học demo real-time. Trong lúc meeting đang diễn ra, các bạn quan sát dashboard cập nhật câu hỏi học viên và đánh dấu nhóm câu hỏi nào cần được nhắc lại hoặc trả lời ngay.
+  - Mời 3-5 bạn đóng vai học viên gửi câu hỏi trong chat với các kiểu khác nhau: câu hỏi mới, câu hỏi lặp ý, câu hỏi đã được giảng viên trả lời miệng, câu hỏi chưa được trả lời.
+  - Sau demo, so sánh danh sách Top-K của hệ thống với đánh giá của giảng viên để cập nhật golden set session-level và kiểm tra chỉ số Recall@10.
+- Multi-prototype:
+  - Prototype 1 - After-class summary: hệ thống tổng hợp câu hỏi sau buổi học để giảng viên xem lại và lưu lịch sử.
+  - Prototype 2 - Real-time meeting assistant: hệ thống cập nhật nhóm câu hỏi ngay trong lúc lớp học đang diễn ra, giúp giảng viên biết câu nào đang được hỏi nhiều hoặc chưa được xử lý.
+  - Hướng ưu tiên tiếp theo là real-time meeting assistant, vì nó giúp giảng viên phản ứng ngay trong buổi học thay vì chỉ xử lý sau khi lớp kết thúc.
 
 ## §9. Changelog
 | Thời điểm | Đổi gì | Vì sao |
 |---|---|---|
 | 2026-09-17 | Viết spec từ template sang lát cắt VLearn Tutor | Cần bản spec có mục tiêu, quality bar và flow rõ ràng |
 | 2026-09-17 | Chốt số đo Recall@10 >= 85%, tương đương 17/20 nhóm unresolved | Cần số cụ thể để bảo vệ prototype |
+| 2026-09-17 | Hoàn thiện phân công nhóm theo 3 mảng AI, Data, UI | Mỗi thành viên có phạm vi rõ để chuẩn bị thuyết trình và demo |
