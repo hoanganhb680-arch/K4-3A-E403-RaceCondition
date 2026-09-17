@@ -46,3 +46,10 @@ class SummarizeRequest(BaseModel):
     top_k: int = Field(default=10, ge=3, le=30)
 
 
+class LiveQuestionCreate(BaseModel):
+    session_id: str = "realtime-video"
+    question: str = Field(min_length=1)
+    time_sec: float = Field(default=0, ge=0)
+    student: str = "Live Student"
+
+

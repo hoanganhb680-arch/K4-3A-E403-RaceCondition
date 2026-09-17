@@ -104,6 +104,7 @@ def add_message(
     rating: str | None = None,
     move_used: str | None = None,
     source_type: str = "live_chat",
+    event_time_sec: float | None = None,
 ) -> dict[str, Any]:
     clean_role = role if role in {"student", "teacher", "assistant"} else "student"
     question_flag = clean_role == "student" and is_question(content)
@@ -114,8 +115,9 @@ def add_message(
             """
             INSERT INTO messages
             (id, session_id, user_id, display_name, role, content, embedding, is_question,
-             turn_id, event_time, lecture_code, lecture_title, course_id, reply_ms, rating, move_used, source_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             turn_id, event_time, lecture_code, lecture_title, course_id, reply_ms, rating, move_used, source_type,
+             event_time_sec)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 message_id,
@@ -135,6 +137,7 @@ def add_message(
                 rating,
                 move_used,
                 source_type,
+                event_time_sec,
             ),
         )
     if question_flag:
@@ -155,6 +158,7 @@ def add_message(
         "rating": rating,
         "move_used": move_used,
         "source_type": source_type,
+        "event_time_sec": event_time_sec,
     }
 
 
@@ -203,10 +207,10 @@ def upsert_question(session_id: str, message_id: str, text: str) -> dict[str, An
         question_id = new_id("question")
         conn.execute(
             """
-            INSERT INTO questions (id, session_id, message_id, cluster_id, text, embedding, similarity)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO questions (id, session_id, message_id, cluster_id, text, embedding, similarity, event_time_sec)
+            VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT event_time_sec FROM messages WHERE id = ?))
             """,
-            (question_id, session_id, message_id, cluster_id, question_text, encode_vector(vector), best_similarity),
+            (question_id, session_id, message_id, cluster_id, question_text, encode_vector(vector), best_similarity, message_id),
         )
     return {"id": question_id, "cluster_id": cluster_id, "similarity": best_similarity}
 
@@ -300,10 +304,20 @@ def add_transcript(session_id: str, source: str, text: str) -> dict[str, Any]:
             conn.execute(
                 """
                 INSERT INTO transcript_chunks
-                (id, session_id, source, chunk_index, text, embedding, transcript_order, source_type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'lecture_transcript')
+                (id, session_id, source, chunk_index, text, embedding, transcript_order, source_type, start_sec, end_sec)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'lecture_transcript', ?, ?)
                 """,
-                (new_id("chunk"), session_id, source, index, chunk, encode_vector(embedding(chunk)), index),
+                (
+                    new_id("chunk"),
+                    session_id,
+                    source,
+                    index,
+                    chunk,
+                    encode_vector(embedding(chunk)),
+                    index,
+                    index * 8,
+                    index * 8 + 8,
+                ),
             )
     return {"session_id": session_id, "source": source, "chunks": len(chunks)}
 

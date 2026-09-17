@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.database import decode_vector, get_conn, row_to_dict
+from app.database import get_conn, row_to_dict
 from app.services.teacher_flow import ensure_default_workspace
 
 
@@ -32,7 +32,7 @@ def realtime_demo_state(
         question_rows = conn.execute(
             """
             SELECT q.id AS question_id, q.cluster_id, q.text, q.similarity,
-                   m.id AS message_id, m.display_name, m.user_id, m.event_time,
+                   m.id AS message_id, m.display_name, m.user_id, m.event_time, m.event_time_sec,
                    m.lecture_title, m.created_at
             FROM questions q
             JOIN messages m ON m.id = q.message_id
@@ -51,10 +51,10 @@ def realtime_demo_state(
         ).fetchall()
         transcript_rows = conn.execute(
             """
-            SELECT id, source, chunk_index, text
+            SELECT id, source, chunk_index, text, start_sec, end_sec, speaker
             FROM transcript_chunks
             WHERE session_id = ?
-            ORDER BY source, chunk_index
+            ORDER BY COALESCE(start_sec, chunk_index), source, chunk_index
             """,
             (session_id,),
         ).fetchall()
@@ -62,7 +62,7 @@ def realtime_demo_state(
     timed_questions: list[dict[str, Any]] = []
     visible_by_cluster: dict[str, list[dict[str, Any]]] = {}
     for index, row in enumerate(question_rows):
-        time_sec = index * QUESTION_STEP_SEC + 8
+        time_sec = row["event_time_sec"] if row["event_time_sec"] is not None else index * QUESTION_STEP_SEC + 8
         question = row_to_dict(row)
         question["time_sec"] = time_sec
         question["display_name"] = question["display_name"] or question["user_id"] or "Học viên"
@@ -97,16 +97,30 @@ def realtime_demo_state(
 
     transcript_window = []
     for index, row in enumerate(transcript_rows):
-        start_sec = index * TRANSCRIPT_STEP_SEC
+        start_sec = row["start_sec"] if row["start_sec"] is not None else index * TRANSCRIPT_STEP_SEC
         if start_sec <= elapsed_sec:
             item = row_to_dict(row)
             item["start_sec"] = start_sec
-            item["end_sec"] = start_sec + TRANSCRIPT_STEP_SEC
+            item["end_sec"] = row["end_sec"] if row["end_sec"] is not None else start_sec + TRANSCRIPT_STEP_SEC
             transcript_window.append(item)
 
     total_duration_sec = max(
-        (len(question_rows) - 1) * QUESTION_STEP_SEC + 45 if question_rows else 0,
-        (len(transcript_rows) - 1) * TRANSCRIPT_STEP_SEC + 30 if transcript_rows else 0,
+        max(
+            (
+                row["event_time_sec"] if row["event_time_sec"] is not None else index * QUESTION_STEP_SEC + 8
+                for index, row in enumerate(question_rows)
+            ),
+            default=0,
+        )
+        + 45,
+        max(
+            (
+                row["end_sec"] if row["end_sec"] is not None else index * TRANSCRIPT_STEP_SEC + 30
+                for index, row in enumerate(transcript_rows)
+            ),
+            default=0,
+        )
+        + 30,
     )
 
     return {

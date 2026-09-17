@@ -235,6 +235,11 @@ export default function Dashboard() {
   const [realtime, setRealtime] = useState<RealtimeData | null>(null);
   const [realtimeElapsedSec, setRealtimeElapsedSec] = useState(0);
   const [realtimeRunning, setRealtimeRunning] = useState(false);
+  const [realtimeSessionId, setRealtimeSessionId] = useState("realtime-video");
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoBusy, setVideoBusy] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [liveQuestion, setLiveQuestion] = useState("Em chưa hiểu phần này, giảng viên giải thích lại được không?");
 
   const meetings = useMemo(() => schedule.flatMap((day) => day.meetings), [schedule]);
   const selectedMeeting = workspace?.meeting ?? meetings.find((item) => item.id === selectedSessionId) ?? null;
@@ -263,11 +268,59 @@ export default function Dashboard() {
     }
   }
 
-  async function refreshRealtime(sessionId = selectedSessionId, elapsedSec = realtimeElapsedSec) {
+  async function refreshRealtime(sessionId = realtimeSessionId, elapsedSec = realtimeElapsedSec) {
     const response = await fetch(`${API_URL}/teacher/realtime?session_id=${sessionId}&elapsed_sec=${elapsedSec}&top_k=${topK}`);
     if (response.ok) {
       setRealtime(await response.json());
     }
+  }
+
+  async function uploadRealtimeVideo() {
+    if (!videoFile) return;
+    setVideoBusy(true);
+    setVideoError(null);
+    const form = new FormData();
+    form.append("file", videoFile);
+    form.append("session_id", realtimeSessionId);
+    form.append("title", videoFile.name);
+    form.append("analyze", "true");
+    try {
+      const response = await fetch(`${API_URL}/teacher/realtime/video`, {
+        method: "POST",
+        body: form,
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        setVideoError(error.detail ?? "Không xử lý được video.");
+      } else {
+        setRealtimeElapsedSec(0);
+        setRealtimeRunning(false);
+        await refreshRealtime(realtimeSessionId, 0);
+        await refreshSchedule();
+      }
+    } catch {
+      setVideoError("Không kết nối được backend khi upload video.");
+    } finally {
+      setVideoBusy(false);
+    }
+  }
+
+  async function sendLiveQuestion() {
+    if (!liveQuestion.trim()) return;
+    setBusy(true);
+    await fetch(`${API_URL}/teacher/realtime/questions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: realtimeSessionId,
+        question: liveQuestion,
+        time_sec: realtimeElapsedSec,
+        student: "Manual Student",
+      }),
+    });
+    setLiveQuestion("");
+    await refreshRealtime(realtimeSessionId, realtimeElapsedSec);
+    setBusy(false);
   }
 
   async function loadEverything() {
@@ -372,20 +425,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (view !== "realtime") return;
-    refreshRealtime(selectedSessionId, realtimeElapsedSec);
-  }, [view, selectedSessionId]);
+    refreshRealtime(realtimeSessionId, realtimeElapsedSec);
+  }, [view, realtimeSessionId]);
 
   useEffect(() => {
     if (!realtimeRunning) return;
     const timer = window.setInterval(() => {
       setRealtimeElapsedSec((value) => {
         const next = value + 5;
-        refreshRealtime(selectedSessionId, next);
+        refreshRealtime(realtimeSessionId, next);
         return next;
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [realtimeRunning, selectedSessionId, topK]);
+  }, [realtimeRunning, realtimeSessionId, topK]);
 
   useEffect(() => {
     if (!summarizing) return;
@@ -561,7 +614,7 @@ export default function Dashboard() {
               <div className="panelHeader">
                 <div>
                   <h2>Realtime teacher dashboard</h2>
-                  <p>Giả lập meeting live từ dữ liệu VLearn: câu hỏi, transcript và nhóm ưu tiên xuất hiện theo timeline.</p>
+                  <p>Upload video, Gemini tạo transcript/câu hỏi theo timestamp, rồi dashboard cập nhật theo timeline.</p>
                 </div>
                 <div className="topbarActions compact">
                   <button
@@ -569,7 +622,7 @@ export default function Dashboard() {
                     onClick={() => {
                       setRealtimeElapsedSec(0);
                       setRealtimeRunning(false);
-                      refreshRealtime(selectedSessionId, 0);
+                      refreshRealtime(realtimeSessionId, 0);
                     }}
                   >
                     <RefreshCw size={15} /> Reset
@@ -580,6 +633,30 @@ export default function Dashboard() {
                   </button>
                 </div>
               </div>
+
+              <div className="realtimeSetup">
+                <label>
+                  Session
+                  <input value={realtimeSessionId} onChange={(event) => setRealtimeSessionId(event.target.value)} />
+                </label>
+                <label>
+                  Video
+                  <input type="file" accept="video/*,audio/*" onChange={(event) => setVideoFile(event.target.files?.[0] ?? null)} />
+                </label>
+                <button className="ghostButton" disabled={!videoFile || videoBusy} onClick={uploadRealtimeVideo}>
+                  {videoBusy ? <RefreshCw className="spinIcon" size={15} /> : <Video size={15} />}
+                  {videoBusy ? "Đang phân tích..." : "Upload & phân tích"}
+                </button>
+              </div>
+              {videoError && (
+                <section className="processingNotice error">
+                  <AlertCircle size={18} />
+                  <div>
+                    <strong>Video chưa xử lý được</strong>
+                    <span>{videoError}</span>
+                  </div>
+                </section>
+              )}
 
               <div className="realtimeProgress">
                 <span>{formatSeconds(realtimeElapsedSec)}</span>
@@ -626,6 +703,11 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="liveFeed">
+                <strong>Nhập câu hỏi live</strong>
+                <div className="liveQuestionComposer">
+                  <input value={liveQuestion} onChange={(event) => setLiveQuestion(event.target.value)} placeholder="Nhập câu hỏi học viên tại thời điểm hiện tại..." />
+                  <button onClick={sendLiveQuestion} disabled={busy || !liveQuestion.trim()}><Send size={15} /></button>
+                </div>
                 <strong>Câu hỏi mới nhất</strong>
                 {(realtime?.live_questions ?? []).slice(-6).reverse().map((question) => (
                   <div key={question.question_id}>
