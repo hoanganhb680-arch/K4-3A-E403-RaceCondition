@@ -536,3 +536,199 @@ def answer_status_many(items: list[dict[str, Any]]) -> list[tuple[str, float, st
         except Exception:
             answers.extend([_local_answer_status(str(item["question"]), item["contexts"]) for item in batch])
     return answers
+
+
+TEACHER_ATTENTION_STATUSES = {"NEEDS_TEACHER_REVIEW", "MONITOR", "AI_TUTOR_HANDLED"}
+
+
+def _as_int(value: Any) -> int | None:
+    try:
+        if value in (None, ""):
+            return None
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _local_teacher_attention_status(item: dict[str, Any]) -> tuple[str, float, str]:
+    question = str(item.get("question", ""))
+    contexts = item.get("contexts", [])
+    frequency = int(item.get("frequency") or 1)
+    student_questions = item.get("student_questions", [])
+    normalized_question = normalize_text(question)
+
+    same_turn_replies = [
+        context
+        for context in contexts
+        if context.get("kind") == "chat_reply"
+        and context.get("role") == "assistant"
+        and context.get("same_turn_reply")
+    ]
+    all_tutor_replies = [
+        context
+        for context in contexts
+        if context.get("kind") == "chat_reply" and context.get("role") == "assistant"
+    ]
+    ratings = [
+        str(context.get("rating", "")).strip().lower()
+        for context in same_turn_replies or all_tutor_replies
+        if str(context.get("rating", "")).strip()
+    ]
+    reply_ms_values = [
+        value
+        for value in (_as_int(context.get("reply_ms")) for context in same_turn_replies or all_tutor_replies)
+        if value is not None
+    ]
+
+    score = 0.05
+    reasons: list[str] = []
+
+    if frequency >= 5:
+        score += 0.45
+        reasons.append(f"{frequency} lượt hỏi cùng ý")
+    elif frequency >= 3:
+        score += 0.34
+        reasons.append(f"{frequency} lượt hỏi cùng ý")
+    elif frequency == 2:
+        score += 0.2
+        reasons.append("có câu hỏi lặp ý")
+
+    if not same_turn_replies:
+        score += 0.22
+        reasons.append("chưa thấy tutor_reply cùng turn trong dữ liệu đã import")
+    else:
+        reasons.append("đã có AI tutor trả lời trong chatlog")
+        score -= 0.08
+
+    if "down" in ratings:
+        score += 0.35
+        reasons.append("có rating down từ học viên")
+
+    if reply_ms_values:
+        max_reply_ms = max(reply_ms_values)
+        if max_reply_ms >= 45_000:
+            score += 0.12
+            reasons.append("AI tutor phản hồi chậm")
+        elif max_reply_ms >= 25_000:
+            score += 0.06
+            reasons.append("AI tutor mất khá lâu để trả lời")
+
+    confusion_markers = (
+        "không hiểu",
+        "chưa hiểu",
+        "khác gì",
+        "tại sao",
+        "vì sao",
+        "làm sao",
+        "như nào",
+        "ví dụ",
+        "example",
+        "giải thích",
+        "lỗi",
+        "sai",
+    )
+    if any(marker in normalized_question for marker in confusion_markers):
+        score += 0.12
+        reasons.append("câu hỏi có dấu hiệu học viên đang vướng khái niệm")
+
+    if len(student_questions) >= 4:
+        score += 0.08
+        reasons.append("nhiều biến thể câu hỏi trong cùng nhóm")
+
+    score = max(0.0, min(1.0, score))
+    if score >= 0.45:
+        status = "NEEDS_TEACHER_REVIEW"
+    elif score >= 0.22:
+        status = "MONITOR"
+    else:
+        status = "AI_TUTOR_HANDLED"
+
+    if not reasons:
+        reasons.append("một lượt hỏi, đã có tín hiệu xử lý bởi AI tutor")
+    return status, score, "; ".join(reasons)[:500]
+
+
+def _normalize_attention_result(
+    result: dict[str, Any],
+    fallback_item: dict[str, Any],
+) -> tuple[str, float, str]:
+    status = str(result.get("status", "")).upper()
+    if status not in TEACHER_ATTENTION_STATUSES:
+        return _local_teacher_attention_status(fallback_item)
+    try:
+        priority = float(result.get("priority_score", result.get("confidence", 0.5)))
+    except (TypeError, ValueError):
+        priority = 0.5
+    priority = max(0.0, min(1.0, priority))
+    return status, priority, str(result.get("reason", result.get("evidence", "")))[:500]
+
+
+def _model_teacher_attention_status_many(items: list[dict[str, Any]]) -> list[tuple[str, float, str]]:
+    payload = []
+    for index, item in enumerate(items):
+        evidence = [
+            {
+                "kind": context.get("kind", "context"),
+                "role": context.get("role", ""),
+                "same_turn_reply": bool(context.get("same_turn_reply")),
+                "score": context.get("score", 0),
+                "rating": context.get("rating"),
+                "reply_ms": context.get("reply_ms"),
+                "text": str(context.get("text", ""))[:420],
+            }
+            for context in item.get("contexts", [])[:5]
+        ]
+        payload.append(
+            {
+                "index": index,
+                "question": str(item.get("question", ""))[:900],
+                "frequency": item.get("frequency", 1),
+                "student_question_count": len(item.get("student_questions", [])),
+                "evidence": evidence,
+            }
+        )
+
+    result = _chat_json(
+        [
+            {
+                "role": "system",
+                "content": (
+                    "Bạn phân loại nhóm câu hỏi học viên để ưu tiên cho giảng viên. "
+                    "Dữ liệu chatlog VLearn thường đã có tutor_reply từ AI tutor, nên không được coi "
+                    "có tutor_reply là hết vấn đề. Hãy đánh giá nhóm này có cần giảng viên nhắc lại không. "
+                    "Status hợp lệ: NEEDS_TEACHER_REVIEW, MONITOR, AI_TUTOR_HANDLED. "
+                    "Ưu tiên review nếu nhiều học viên hỏi cùng ý, có rating down, câu hỏi thể hiện chưa hiểu, "
+                    "hoặc tutor_reply chỉ là bằng chứng AI đã trả lời chứ chưa chứng minh giảng viên đã xử lý. "
+                    "Trả JSON dạng {\"items\":[{\"index\":0,\"status\":\"NEEDS_TEACHER_REVIEW\","
+                    "\"priority_score\":0.0,\"reason\":\"lý do ngắn\"}]}."
+                ),
+            },
+            {"role": "user", "content": json.dumps({"items": payload}, ensure_ascii=False)},
+        ]
+    )
+    by_index = {
+        int(item.get("index", -1)): item
+        for item in result.get("items", [])
+        if isinstance(item, dict)
+    }
+    return [
+        _normalize_attention_result(by_index.get(index, {}), item)
+        for index, item in enumerate(items)
+    ]
+
+
+def teacher_attention_status_many(items: list[dict[str, Any]]) -> list[tuple[str, float, str]]:
+    if not items:
+        return []
+    if not llm_enabled():
+        return [_local_teacher_attention_status(item) for item in items]
+
+    batch_size = _env_int("GEMINI_ANSWER_BATCH_SIZE", 10)
+    answers: list[tuple[str, float, str]] = []
+    for start in range(0, len(items), batch_size):
+        batch = items[start : start + batch_size]
+        try:
+            answers.extend(_model_teacher_attention_status_many(batch))
+        except Exception:
+            answers.extend([_local_teacher_attention_status(item) for item in batch])
+    return answers

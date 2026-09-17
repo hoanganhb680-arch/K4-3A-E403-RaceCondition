@@ -61,6 +61,15 @@ def init_db() -> None:
                 content TEXT NOT NULL,
                 embedding TEXT NOT NULL DEFAULT '[]',
                 is_question INTEGER NOT NULL DEFAULT 0,
+                turn_id TEXT,
+                event_time TEXT,
+                lecture_code TEXT,
+                lecture_title TEXT,
+                course_id TEXT,
+                reply_ms INTEGER,
+                rating TEXT,
+                move_used TEXT,
+                source_type TEXT NOT NULL DEFAULT 'live_chat',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
             );
@@ -71,8 +80,10 @@ def init_db() -> None:
                 representative_question TEXT NOT NULL,
                 representative_embedding TEXT NOT NULL,
                 frequency INTEGER NOT NULL DEFAULT 1,
-                status TEXT NOT NULL DEFAULT 'UNANSWERED',
+                status TEXT NOT NULL DEFAULT 'NEEDS_TEACHER_REVIEW',
                 confidence REAL NOT NULL DEFAULT 0,
+                priority_score REAL NOT NULL DEFAULT 0,
+                attention_reason TEXT NOT NULL DEFAULT '',
                 retrieval_context TEXT NOT NULL DEFAULT '[]',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -100,6 +111,9 @@ def init_db() -> None:
                 chunk_index INTEGER NOT NULL,
                 text TEXT NOT NULL,
                 embedding TEXT NOT NULL,
+                segment_id TEXT,
+                transcript_order INTEGER,
+                source_type TEXT NOT NULL DEFAULT 'lecture_transcript',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
             );
@@ -139,6 +153,8 @@ def init_db() -> None:
                 student_questions_json TEXT NOT NULL DEFAULT '[]',
                 status TEXT NOT NULL,
                 confidence REAL NOT NULL DEFAULT 0,
+                priority_score REAL NOT NULL DEFAULT 0,
+                attention_reason TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(summary_id) REFERENCES question_summaries(id) ON DELETE CASCADE,
                 FOREIGN KEY(cluster_id) REFERENCES question_clusters(id) ON DELETE CASCADE
@@ -148,6 +164,20 @@ def init_db() -> None:
         _ensure_column(conn, "messages", "display_name", "TEXT NOT NULL DEFAULT ''")
         _ensure_column(conn, "messages", "role", "TEXT NOT NULL DEFAULT 'student'")
         _ensure_column(conn, "messages", "embedding", "TEXT NOT NULL DEFAULT '[]'")
+        _ensure_column(conn, "messages", "turn_id", "TEXT")
+        _ensure_column(conn, "messages", "event_time", "TEXT")
+        _ensure_column(conn, "messages", "lecture_code", "TEXT")
+        _ensure_column(conn, "messages", "lecture_title", "TEXT")
+        _ensure_column(conn, "messages", "course_id", "TEXT")
+        _ensure_column(conn, "messages", "reply_ms", "INTEGER")
+        _ensure_column(conn, "messages", "rating", "TEXT")
+        _ensure_column(conn, "messages", "move_used", "TEXT")
+        _ensure_column(conn, "messages", "source_type", "TEXT NOT NULL DEFAULT 'live_chat'")
+        _ensure_column(conn, "question_clusters", "priority_score", "REAL NOT NULL DEFAULT 0")
+        _ensure_column(conn, "question_clusters", "attention_reason", "TEXT NOT NULL DEFAULT ''")
+        _ensure_column(conn, "transcript_chunks", "segment_id", "TEXT")
+        _ensure_column(conn, "transcript_chunks", "transcript_order", "INTEGER")
+        _ensure_column(conn, "transcript_chunks", "source_type", "TEXT NOT NULL DEFAULT 'lecture_transcript'")
         _ensure_column(conn, "sessions", "course_title", "TEXT NOT NULL DEFAULT 'AI Fundamentals'")
         _ensure_column(conn, "sessions", "meeting_date", "TEXT NOT NULL DEFAULT '2026-09-15'")
         _ensure_column(conn, "sessions", "start_time", "TEXT NOT NULL DEFAULT '09:00'")
@@ -155,6 +185,8 @@ def init_db() -> None:
         _ensure_column(conn, "sessions", "platform", "TEXT NOT NULL DEFAULT 'VLearn Live'")
         _ensure_column(conn, "sessions", "status", "TEXT NOT NULL DEFAULT 'scheduled'")
         _ensure_column(conn, "summary_items", "student_questions_json", "TEXT NOT NULL DEFAULT '[]'")
+        _ensure_column(conn, "summary_items", "priority_score", "REAL NOT NULL DEFAULT 0")
+        _ensure_column(conn, "summary_items", "attention_reason", "TEXT NOT NULL DEFAULT ''")
 
 
 def reset_db() -> None:

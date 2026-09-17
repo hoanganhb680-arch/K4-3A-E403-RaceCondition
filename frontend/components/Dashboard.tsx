@@ -48,14 +48,20 @@ type Message = {
   role: "student" | "teacher" | "assistant";
   content: string;
   is_question: number;
+  event_time?: string | null;
+  lecture_code?: string | null;
+  lecture_title?: string | null;
+  source_type?: string | null;
 };
 
 type Cluster = {
   id: string;
   representative_question: string;
   frequency: number;
-  status: "ANSWERED" | "PARTIALLY_ANSWERED" | "UNANSWERED";
+  status: "NEEDS_TEACHER_REVIEW" | "MONITOR" | "AI_TUTOR_HANDLED";
   confidence: number;
+  priority_score?: number;
+  attention_reason?: string;
   askers: string[];
   sample_questions: string[];
 };
@@ -69,6 +75,8 @@ type WorkspaceData = {
     question_clusters: number;
     answered: number;
     unresolved: number;
+    ai_tutor_handled?: number;
+    needs_teacher_attention?: number;
     transcript_chunks: number;
   };
   messages: Message[];
@@ -96,6 +104,9 @@ type StudentQuestion = {
   display_name: string;
   user_id: string;
   created_at: string;
+  event_time?: string | null;
+  lecture_code?: string | null;
+  lecture_title?: string | null;
 };
 
 type SummaryItem = {
@@ -109,6 +120,8 @@ type SummaryItem = {
   student_questions?: StudentQuestion[];
   status: Cluster["status"];
   confidence: number;
+  priority_score?: number;
+  attention_reason?: string;
 };
 
 type SavedSummary = SavedSummaryListItem & {
@@ -152,6 +165,12 @@ function cleanQuestionText(text: string) {
     .replace(/^\(Đang học phần [“"][^”"]+[”"] của buổi này\)\s*/u, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function statusLabel(status: Cluster["status"]) {
+  if (status === "NEEDS_TEACHER_REVIEW") return "Cần giảng viên xem";
+  if (status === "MONITOR") return "Theo dõi";
+  return "AI tutor đã trả lời";
 }
 
 export default function Dashboard() {
@@ -336,7 +355,7 @@ export default function Dashboard() {
           <Archive size={17} />
           <div>
             <strong>Lưu trong SQLite</strong>
-            <span>Mỗi bản tổng hợp gắn với `session_id`, ngày học và cuộc họp.</span>
+            <span>Mỗi bản tổng hợp gắn với `session_id`, ngày học, lượt hỏi và AI tutor reply.</span>
           </div>
         </div>
       </aside>
@@ -364,7 +383,7 @@ export default function Dashboard() {
             </label>
             <button className="primaryButton" onClick={summarizeQuestions} disabled={busy || !selectedMeeting}>
               {summarizing ? <RefreshCw className="spinIcon" size={16} /> : <Sparkles size={16} />}
-              {summarizing ? `Đang tổng hợp... ${formatDuration(summaryElapsedMs)}` : "Tổng hợp câu hỏi"}
+              {summarizing ? `Đang tổng hợp... ${formatDuration(summaryElapsedMs)}` : "Tổng hợp nhóm cần chú ý"}
             </button>
           </div>
         </header>
@@ -390,7 +409,7 @@ export default function Dashboard() {
             <div><MessageSquare size={18} /><strong>{workspace?.summary.chat_messages ?? 0}</strong><span>tin nhắn trong meeting</span></div>
             <div><Search size={18} /><strong>{workspace?.summary.detected_questions ?? 0}</strong><span>câu hỏi phát hiện</span></div>
             <div><Layers size={18} /><strong>{workspace?.summary.question_clusters ?? 0}</strong><span>nhóm câu hỏi</span></div>
-            <div><Archive size={18} /><strong>{summaries.length}</strong><span>bản tổng hợp đã lưu</span></div>
+            <div><Archive size={18} /><strong>{workspace?.summary.needs_teacher_attention ?? 0}</strong><span>nhóm cần giảng viên chú ý</span></div>
           </section>
         )}
 
@@ -467,8 +486,8 @@ export default function Dashboard() {
             <article className="panel tierPanel">
               <div className="panelHeader">
                 <div>
-                  <h2>Top {currentSummary?.top_k ?? topK} nhóm câu hỏi học viên hỏi nhiều nhất</h2>
-                  <p>{currentSummary?.meeting ? `${formatDate(currentSummary.meeting.meeting_date)} · ${currentSummary.meeting.title}` : "Mỗi dòng là một nhóm câu hỏi có cùng ý."}</p>
+                  <h2>Top {currentSummary?.top_k ?? topK} nhóm câu hỏi cần chú ý</h2>
+                  <p>{currentSummary?.meeting ? `${formatDate(currentSummary.meeting.meeting_date)} · ${currentSummary.meeting.title}` : "Mỗi dòng là một nhóm câu hỏi có cùng ý và đã đối chiếu với AI tutor reply."}</p>
                 </div>
                 {currentSummary && <span className="savedBadge">Đã lưu SQLite</span>}
               </div>
@@ -477,7 +496,7 @@ export default function Dashboard() {
                 <div className="emptyState">
                   <Sparkles size={38} />
                   <strong>Chưa có bản tổng hợp trong cuộc họp này</strong>
-                  <span>Bấm “Tổng hợp câu hỏi” trong meeting để tạo tier list.</span>
+                  <span>Bấm “Tổng hợp nhóm cần chú ý” trong meeting để tạo tier list.</span>
                 </div>
               ) : (
                 <div className="tierList">
@@ -513,6 +532,7 @@ export default function Dashboard() {
                               {item.frequency} lượt hỏi cùng ý
                               {item.askers.length > 0 ? ` · ${item.askers.slice(0, 6).join(", ")}` : ""}
                             </p>
+                            <small>{statusLabel(item.status)}{item.attention_reason ? ` · ${item.attention_reason}` : ""}</small>
                             {previewQuestions.length > 0 && (
                               <em>Một vài cách học viên đã hỏi: {previewQuestions.join(" · ")}</em>
                             )}
@@ -534,6 +554,9 @@ export default function Dashboard() {
                                 <span>{index + 1}</span>
                                 <div>
                                   <strong>{question.display_name || question.user_id || "Học viên"}</strong>
+                                  {(question.event_time || question.lecture_title) && (
+                                    <em>{[question.event_time, question.lecture_title].filter(Boolean).join(" · ")}</em>
+                                  )}
                                   <p>{cleanQuestionText(question.text) || question.text}</p>
                                 </div>
                               </div>
@@ -557,8 +580,8 @@ export default function Dashboard() {
               <div className="storageDetail">
                 <Archive size={24} />
                 <strong>SQLite</strong>
-                <span>`question_summaries.session_id` nối về meeting trong `sessions`.</span>
-                <span>`summary_items`: từng nhóm câu hỏi trong top-K.</span>
+                <span>`messages` giữ `turn_id`, `asked_at_vn`, lecture và AI tutor reply.</span>
+                <span>`summary_items`: từng nhóm câu hỏi cần giảng viên xem lại trong top-K.</span>
               </div>
               {currentSummary && (
                 <div className="summaryMeta">
@@ -618,7 +641,7 @@ export default function Dashboard() {
                   <button key={summary.id} onClick={() => openSummary(summary.id)}>
                     <div>
                       <strong>{summary.meeting_title ?? summary.title}</strong>
-                      <span>{formatDate(summary.meeting_date)} · {summary.start_time} - {summary.end_time} · {summary.item_count} câu hỏi</span>
+                      <span>{formatDate(summary.meeting_date)} · {summary.start_time} - {summary.end_time} · {summary.item_count} nhóm</span>
                       <em>{summary.title} · {summary.total_clusters} nhóm đã gom</em>
                     </div>
                     <Crown size={18} />

@@ -586,6 +586,14 @@ h1 {
   margin: 0;
 }
 
+.tierItem small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .tierItem em {
   display: block;
   margin-top: 7px;

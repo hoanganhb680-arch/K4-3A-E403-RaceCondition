@@ -117,7 +117,9 @@ def ensure_default_workspace(
 def _student_questions_by_cluster(conn: Any, session_id: str) -> dict[str, list[dict[str, Any]]]:
     rows = conn.execute(
         """
-        SELECT q.cluster_id, q.text, m.display_name, m.user_id, m.created_at
+        SELECT q.cluster_id, q.text, m.display_name, m.user_id, m.created_at,
+               m.turn_id, m.event_time, m.lecture_code, m.lecture_title, m.course_id,
+               m.reply_ms, m.rating, m.move_used, m.source_type
         FROM questions q
         JOIN messages m ON m.id = q.message_id
         WHERE q.session_id = ?
@@ -134,9 +136,36 @@ def _student_questions_by_cluster(conn: Any, session_id: str) -> dict[str, list[
                 "display_name": row["display_name"] or row["user_id"] or "Học viên",
                 "user_id": row["user_id"],
                 "created_at": row["created_at"],
+                "turn_id": row["turn_id"],
+                "event_time": row["event_time"],
+                "lecture_code": row["lecture_code"],
+                "lecture_title": row["lecture_title"],
+                "course_id": row["course_id"],
+                "reply_ms": row["reply_ms"],
+                "rating": row["rating"],
+                "move_used": row["move_used"],
+                "source_type": row["source_type"],
             }
         )
     return grouped
+
+
+def _summary_processing_needed(session_id: str) -> bool:
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM question_clusters
+            WHERE session_id = ?
+              AND (
+                retrieval_context = '[]'
+                OR attention_reason = ''
+                OR updated_at IS NULL
+              )
+            """,
+            (session_id,),
+        ).fetchone()
+    return bool(row and int(row["total"]) > 0)
 
 
 def create_question_summary(
@@ -144,16 +173,21 @@ def create_question_summary(
     teacher_id: str = DEFAULT_TEACHER_ID,
     top_k: int = 10,
 ) -> dict[str, Any]:
-    ensure_default_workspace(session_id=session_id, refresh_embeddings=True)
-    process_session(session_id, top_k=5)
+    ensure_default_workspace(session_id=session_id, refresh_embeddings=False)
+    if _summary_processing_needed(session_id):
+        process_session(session_id, top_k=5)
     data = dashboard(session_id)
     ranked_clusters = sorted(
         data["clusters"],
-        key=lambda cluster: (-cluster["frequency"], cluster["status"], -cluster["confidence"]),
+        key=lambda cluster: (
+            {"NEEDS_TEACHER_REVIEW": 0, "MONITOR": 1, "AI_TUTOR_HANDLED": 2}.get(cluster["status"], 3),
+            -cluster["frequency"],
+            -cluster.get("priority_score", 0),
+        ),
     )[:top_k]
 
     summary_id = new_id("summary")
-    title = f"Top {top_k} nhóm câu hỏi học viên hỏi nhiều nhất"
+    title = f"Top {top_k} nhóm câu hỏi cần giảng viên chú ý"
     with get_conn() as conn:
         conn.execute(
             """
@@ -168,8 +202,8 @@ def create_question_summary(
                 """
                 INSERT INTO summary_items
                 (id, summary_id, cluster_id, rank, question, frequency, askers_json,
-                 sample_questions_json, student_questions_json, status, confidence)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 sample_questions_json, student_questions_json, status, confidence, priority_score, attention_reason)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     new_id("summary_item"),
@@ -183,6 +217,8 @@ def create_question_summary(
                     json.dumps(cluster.get("student_questions", []), ensure_ascii=False),
                     cluster["status"],
                     cluster["confidence"],
+                    cluster.get("priority_score", cluster["confidence"]),
+                    cluster.get("attention_reason", ""),
                 ),
             )
     return get_question_summary(summary_id)

@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "VLearn Tutor CP3",
-  description: "Question deduplication and unresolved lecture dashboard",
+  description: "Question clustering and teacher-attention dashboard",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
