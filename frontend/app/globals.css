@@ -565,6 +565,43 @@ h1 {
   background: #f8fbff;
 }
 
+.tierItemMain.static {
+  cursor: default;
+}
+
+.tierItemMain.static:hover {
+  background: transparent;
+}
+
+.topbarActions.compact {
+  flex-wrap: nowrap;
+}
+
+.realtimeProgress {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 54px;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.realtimeProgress div {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.realtimeProgress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #16a34a);
+}
+
 .rank {
   display: grid;
   width: 42px;
@@ -680,6 +717,40 @@ h1 {
 }
 
 .studentQuestionRow p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.liveFeed {
+  display: grid;
+  gap: 10px;
+}
+
+.liveFeed > strong {
+  margin-top: 4px;
+  font-size: 13px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.liveFeed div {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
+.liveFeed span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.liveFeed p {
+  margin: 0;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;

@@ -9,6 +9,7 @@ from app.schemas import ImportVLearnRequest, MessageCreate, ProcessRequest, Sess
 from app.seed_demo import seed_demo
 from app.services.ai import ai_runtime_status
 from app.services.pipeline import add_message, add_transcript, create_session, dashboard, process_session, report
+from app.services.realtime_flow import realtime_demo_state
 from app.services.teacher_flow import create_question_summary, ensure_default_workspace, get_question_summary, list_question_summaries, list_teacher_schedule
 from app.services.vlearn_importer import import_vlearn_pack
 
@@ -111,6 +112,11 @@ def teacher_summary_endpoint(summary_id: str) -> dict:
         return get_question_summary(summary_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Summary not found") from exc
+
+
+@app.get("/teacher/realtime")
+def teacher_realtime_endpoint(session_id: str = "vlearn-pack", elapsed_sec: int = 0, top_k: int = 8) -> dict:
+    return realtime_demo_state(session_id=session_id, elapsed_sec=elapsed_sec, top_k=top_k)
 
 
 @app.get("/sessions/{session_id}/dashboard")
