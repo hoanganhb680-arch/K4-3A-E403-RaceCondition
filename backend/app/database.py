@@ -70,19 +70,6 @@ def init_db() -> None:
                 rating TEXT,
                 move_used TEXT,
                 source_type TEXT NOT NULL DEFAULT 'live_chat',
-                event_time_sec REAL,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS videos (
-                id TEXT PRIMARY KEY,
-                session_id TEXT NOT NULL,
-                file_path TEXT NOT NULL,
-                file_name TEXT NOT NULL,
-                mime_type TEXT NOT NULL DEFAULT 'video/mp4',
-                duration_sec REAL NOT NULL DEFAULT 0,
-                stt_status TEXT NOT NULL DEFAULT 'pending',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
             );
@@ -111,7 +98,6 @@ def init_db() -> None:
                 text TEXT NOT NULL,
                 embedding TEXT NOT NULL,
                 similarity REAL NOT NULL DEFAULT 1,
-                event_time_sec REAL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,
                 FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE,
@@ -128,10 +114,6 @@ def init_db() -> None:
                 segment_id TEXT,
                 transcript_order INTEGER,
                 source_type TEXT NOT NULL DEFAULT 'lecture_transcript',
-                video_id TEXT,
-                start_sec REAL,
-                end_sec REAL,
-                speaker TEXT NOT NULL DEFAULT 'teacher',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
             );
@@ -191,17 +173,11 @@ def init_db() -> None:
         _ensure_column(conn, "messages", "rating", "TEXT")
         _ensure_column(conn, "messages", "move_used", "TEXT")
         _ensure_column(conn, "messages", "source_type", "TEXT NOT NULL DEFAULT 'live_chat'")
-        _ensure_column(conn, "messages", "event_time_sec", "REAL")
         _ensure_column(conn, "question_clusters", "priority_score", "REAL NOT NULL DEFAULT 0")
         _ensure_column(conn, "question_clusters", "attention_reason", "TEXT NOT NULL DEFAULT ''")
-        _ensure_column(conn, "questions", "event_time_sec", "REAL")
         _ensure_column(conn, "transcript_chunks", "segment_id", "TEXT")
         _ensure_column(conn, "transcript_chunks", "transcript_order", "INTEGER")
         _ensure_column(conn, "transcript_chunks", "source_type", "TEXT NOT NULL DEFAULT 'lecture_transcript'")
-        _ensure_column(conn, "transcript_chunks", "video_id", "TEXT")
-        _ensure_column(conn, "transcript_chunks", "start_sec", "REAL")
-        _ensure_column(conn, "transcript_chunks", "end_sec", "REAL")
-        _ensure_column(conn, "transcript_chunks", "speaker", "TEXT NOT NULL DEFAULT 'teacher'")
         _ensure_column(conn, "sessions", "course_title", "TEXT NOT NULL DEFAULT 'AI Fundamentals'")
         _ensure_column(conn, "sessions", "meeting_date", "TEXT NOT NULL DEFAULT '2026-09-15'")
         _ensure_column(conn, "sessions", "start_time", "TEXT NOT NULL DEFAULT '09:00'")

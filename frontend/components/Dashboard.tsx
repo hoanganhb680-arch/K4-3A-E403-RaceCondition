@@ -12,9 +12,6 @@ import {
   History,
   Layers,
   MessageSquare,
-  Pause,
-  Play,
-  Radio,
   RefreshCw,
   Search,
   Send,
@@ -137,41 +134,7 @@ type SavedSummary = SavedSummaryListItem & {
   };
 };
 
-type RealtimeQuestion = StudentQuestion & {
-  question_id: string;
-  cluster_id: string;
-  time_sec: number;
-};
-
-type RealtimeTranscriptChunk = {
-  id: string;
-  source: string;
-  chunk_index: number;
-  text: string;
-  start_sec: number;
-  end_sec: number;
-};
-
-type RealtimeData = {
-  session_id: string;
-  meeting: Meeting | null;
-  elapsed_sec: number;
-  total_duration_sec: number;
-  progress: number;
-  summary: {
-    visible_questions: number;
-    visible_clusters: number;
-    visible_transcript_chunks: number;
-    total_questions: number;
-    total_clusters: number;
-    total_transcript_chunks: number;
-  };
-  live_questions: RealtimeQuestion[];
-  live_clusters: (Cluster & { student_questions?: RealtimeQuestion[] })[];
-  live_transcript: RealtimeTranscriptChunk[];
-};
-
-type View = "schedule" | "chat" | "realtime" | "summary" | "history";
+type View = "schedule" | "chat" | "summary" | "history";
 
 function shortText(text: string, limit = 240) {
   return text.length > limit ? `${text.slice(0, limit).trim()}...` : text;
@@ -195,12 +158,6 @@ function formatDate(value?: string) {
 function formatDuration(value: number | null) {
   if (value === null) return "0.0s";
   return `${(value / 1000).toFixed(1)}s`;
-}
-
-function formatSeconds(value: number) {
-  const minutes = Math.floor(value / 60);
-  const seconds = Math.max(0, Math.floor(value % 60));
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function cleanQuestionText(text: string) {
@@ -232,14 +189,6 @@ export default function Dashboard() {
   const [expandedSummaryItemId, setExpandedSummaryItemId] = useState<string | null>(null);
   const [topK, setTopK] = useState(10);
   const [message, setMessage] = useState("Em muốn hỏi lại phần này có giống câu hỏi nào trước đó không?");
-  const [realtime, setRealtime] = useState<RealtimeData | null>(null);
-  const [realtimeElapsedSec, setRealtimeElapsedSec] = useState(0);
-  const [realtimeRunning, setRealtimeRunning] = useState(false);
-  const [realtimeSessionId, setRealtimeSessionId] = useState("realtime-video");
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [videoBusy, setVideoBusy] = useState(false);
-  const [videoError, setVideoError] = useState<string | null>(null);
-  const [liveQuestion, setLiveQuestion] = useState("Em chưa hiểu phần này, giảng viên giải thích lại được không?");
 
   const meetings = useMemo(() => schedule.flatMap((day) => day.meetings), [schedule]);
   const selectedMeeting = workspace?.meeting ?? meetings.find((item) => item.id === selectedSessionId) ?? null;
@@ -268,61 +217,6 @@ export default function Dashboard() {
     }
   }
 
-  async function refreshRealtime(sessionId = realtimeSessionId, elapsedSec = realtimeElapsedSec) {
-    const response = await fetch(`${API_URL}/teacher/realtime?session_id=${sessionId}&elapsed_sec=${elapsedSec}&top_k=${topK}`);
-    if (response.ok) {
-      setRealtime(await response.json());
-    }
-  }
-
-  async function uploadRealtimeVideo() {
-    if (!videoFile) return;
-    setVideoBusy(true);
-    setVideoError(null);
-    const form = new FormData();
-    form.append("file", videoFile);
-    form.append("session_id", realtimeSessionId);
-    form.append("title", videoFile.name);
-    form.append("analyze", "true");
-    try {
-      const response = await fetch(`${API_URL}/teacher/realtime/video`, {
-        method: "POST",
-        body: form,
-      });
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        setVideoError(error.detail ?? "Không xử lý được video.");
-      } else {
-        setRealtimeElapsedSec(0);
-        setRealtimeRunning(false);
-        await refreshRealtime(realtimeSessionId, 0);
-        await refreshSchedule();
-      }
-    } catch {
-      setVideoError("Không kết nối được backend khi upload video.");
-    } finally {
-      setVideoBusy(false);
-    }
-  }
-
-  async function sendLiveQuestion() {
-    if (!liveQuestion.trim()) return;
-    setBusy(true);
-    await fetch(`${API_URL}/teacher/realtime/questions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_id: realtimeSessionId,
-        question: liveQuestion,
-        time_sec: realtimeElapsedSec,
-        student: "Manual Student",
-      }),
-    });
-    setLiveQuestion("");
-    await refreshRealtime(realtimeSessionId, realtimeElapsedSec);
-    setBusy(false);
-  }
-
   async function loadEverything() {
     setBusy(true);
     await refreshSchedule();
@@ -340,7 +234,6 @@ export default function Dashboard() {
     setLastSummaryDurationMs(null);
     setSummaryError(null);
     await refreshWorkspace(sessionId);
-    await refreshRealtime(sessionId, 0);
     setView("chat");
     setBusy(false);
   }
@@ -424,23 +317,6 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (view !== "realtime") return;
-    refreshRealtime(realtimeSessionId, realtimeElapsedSec);
-  }, [view, realtimeSessionId]);
-
-  useEffect(() => {
-    if (!realtimeRunning) return;
-    const timer = window.setInterval(() => {
-      setRealtimeElapsedSec((value) => {
-        const next = value + 5;
-        refreshRealtime(realtimeSessionId, next);
-        return next;
-      });
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [realtimeRunning, realtimeSessionId, topK]);
-
-  useEffect(() => {
     if (!summarizing) return;
     const startedAt = performance.now() - summaryElapsedMs;
     const timer = window.setInterval(() => {
@@ -466,9 +342,6 @@ export default function Dashboard() {
           </button>
           <button className={view === "chat" ? "active" : ""} onClick={() => setView("chat")}>
             <MessageSquare size={16} /> Chat lớp học
-          </button>
-          <button className={view === "realtime" ? "active" : ""} onClick={() => setView("realtime")}>
-            <Radio size={16} /> Realtime demo
           </button>
           <button className={view === "summary" ? "active" : ""} onClick={() => setView("summary")}>
             <Crown size={16} /> Tổng hợp mới nhất
@@ -533,10 +406,10 @@ export default function Dashboard() {
 
         {view !== "schedule" && (
           <section className="metricGrid">
-            <div><MessageSquare size={18} /><strong>{view === "realtime" ? realtime?.summary.visible_questions ?? 0 : workspace?.summary.chat_messages ?? 0}</strong><span>{view === "realtime" ? "câu hỏi đã xuất hiện" : "tin nhắn trong meeting"}</span></div>
-            <div><Search size={18} /><strong>{view === "realtime" ? realtime?.summary.total_questions ?? 0 : workspace?.summary.detected_questions ?? 0}</strong><span>{view === "realtime" ? "tổng câu hỏi demo" : "câu hỏi phát hiện"}</span></div>
-            <div><Layers size={18} /><strong>{view === "realtime" ? realtime?.summary.visible_clusters ?? 0 : workspace?.summary.question_clusters ?? 0}</strong><span>nhóm câu hỏi</span></div>
-            <div><Archive size={18} /><strong>{view === "realtime" ? formatSeconds(realtimeElapsedSec) : workspace?.summary.needs_teacher_attention ?? 0}</strong><span>{view === "realtime" ? "thời gian demo" : "nhóm cần giảng viên chú ý"}</span></div>
+            <div><MessageSquare size={18} /><strong>{workspace?.summary.chat_messages ?? 0}</strong><span>tin nhắn trong meeting</span></div>
+            <div><Search size={18} /><strong>{workspace?.summary.detected_questions ?? 0}</strong><span>câu hỏi phát hiện</span></div>
+            <div><Layers size={18} /><strong>{workspace?.summary.question_clusters ?? 0}</strong><span>nhóm câu hỏi</span></div>
+            <div><Archive size={18} /><strong>{workspace?.summary.needs_teacher_attention ?? 0}</strong><span>nhóm cần giảng viên chú ý</span></div>
           </section>
         )}
 
@@ -605,125 +478,6 @@ export default function Dashboard() {
               </div>
             </article>
 
-          </section>
-        )}
-
-        {view === "realtime" && (
-          <section className="summaryLayout">
-            <article className="panel tierPanel">
-              <div className="panelHeader">
-                <div>
-                  <h2>Realtime teacher dashboard</h2>
-                  <p>Upload video, Gemini tạo transcript/câu hỏi theo timestamp, rồi dashboard cập nhật theo timeline.</p>
-                </div>
-                <div className="topbarActions compact">
-                  <button
-                    className="ghostButton"
-                    onClick={() => {
-                      setRealtimeElapsedSec(0);
-                      setRealtimeRunning(false);
-                      refreshRealtime(realtimeSessionId, 0);
-                    }}
-                  >
-                    <RefreshCw size={15} /> Reset
-                  </button>
-                  <button className="primaryButton" onClick={() => setRealtimeRunning((value) => !value)}>
-                    {realtimeRunning ? <Pause size={16} /> : <Play size={16} />}
-                    {realtimeRunning ? "Tạm dừng" : "Chạy demo"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="realtimeSetup">
-                <label>
-                  Session
-                  <input value={realtimeSessionId} onChange={(event) => setRealtimeSessionId(event.target.value)} />
-                </label>
-                <label>
-                  Video
-                  <input type="file" accept="video/*,audio/*" onChange={(event) => setVideoFile(event.target.files?.[0] ?? null)} />
-                </label>
-                <button className="ghostButton" disabled={!videoFile || videoBusy} onClick={uploadRealtimeVideo}>
-                  {videoBusy ? <RefreshCw className="spinIcon" size={15} /> : <Video size={15} />}
-                  {videoBusy ? "Đang phân tích..." : "Upload & phân tích"}
-                </button>
-              </div>
-              {videoError && (
-                <section className="processingNotice error">
-                  <AlertCircle size={18} />
-                  <div>
-                    <strong>Video chưa xử lý được</strong>
-                    <span>{videoError}</span>
-                  </div>
-                </section>
-              )}
-
-              <div className="realtimeProgress">
-                <span>{formatSeconds(realtimeElapsedSec)}</span>
-                <div>
-                  <i style={{ width: `${Math.min((realtime?.progress ?? 0) * 100, 100)}%` }} />
-                </div>
-                <span>{formatSeconds(realtime?.total_duration_sec ?? 0)}</span>
-              </div>
-
-              <div className="tierList">
-                {(realtime?.live_clusters ?? []).map((cluster, index) => (
-                  <div className="tierItem" key={cluster.id}>
-                    <div className="tierItemMain static">
-                      <span className="rank">#{index + 1}</span>
-                      <div>
-                        <strong>{cleanQuestionText(cluster.representative_question) || cluster.representative_question}</strong>
-                        <p>{cluster.frequency} lượt hỏi đã xuất hiện · {cluster.askers?.slice(0, 5).join(", ")}</p>
-                        <small>{statusLabel(cluster.status)}{cluster.attention_reason ? ` · ${cluster.attention_reason}` : ""}</small>
-                        {cluster.sample_questions?.length > 0 && (
-                          <em>Một vài câu hỏi: {cluster.sample_questions.map(cleanQuestionText).slice(0, 2).join(" · ")}</em>
-                        )}
-                      </div>
-                      <span className="tierAction">
-                        <span className={`status ${cluster.status}`}>{cluster.frequency}</span>
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                {(realtime?.live_clusters ?? []).length === 0 && (
-                  <div className="emptyState">
-                    <Radio size={38} />
-                    <strong>Chưa có câu hỏi trong timeline</strong>
-                    <span>Bấm “Chạy demo” để câu hỏi và cụm ưu tiên xuất hiện theo thời gian.</span>
-                  </div>
-                )}
-              </div>
-            </article>
-
-            <article className="panel savedInfoPanel">
-              <div className="panelHeader">
-                <div>
-                  <h2>Live stream</h2>
-                  <p>Câu hỏi và transcript đang mở khóa theo thời gian demo.</p>
-                </div>
-              </div>
-              <div className="liveFeed">
-                <strong>Nhập câu hỏi live</strong>
-                <div className="liveQuestionComposer">
-                  <input value={liveQuestion} onChange={(event) => setLiveQuestion(event.target.value)} placeholder="Nhập câu hỏi học viên tại thời điểm hiện tại..." />
-                  <button onClick={sendLiveQuestion} disabled={busy || !liveQuestion.trim()}><Send size={15} /></button>
-                </div>
-                <strong>Câu hỏi mới nhất</strong>
-                {(realtime?.live_questions ?? []).slice(-6).reverse().map((question) => (
-                  <div key={question.question_id}>
-                    <span>{formatSeconds(question.time_sec)} · {question.display_name}</span>
-                    <p>{cleanQuestionText(question.text) || question.text}</p>
-                  </div>
-                ))}
-                <strong>Transcript gần nhất</strong>
-                {(realtime?.live_transcript ?? []).slice(-4).reverse().map((chunk) => (
-                  <div key={chunk.id}>
-                    <span>{formatSeconds(chunk.start_sec)} - {formatSeconds(chunk.end_sec)}</span>
-                    <p>{shortText(chunk.text, 180)}</p>
-                  </div>
-                ))}
-              </div>
-            </article>
           </section>
         )}
 

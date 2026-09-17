@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
 from app.database import init_db
-from app.schemas import ImportVLearnRequest, LiveQuestionCreate, MessageCreate, ProcessRequest, SessionCreate, SummarizeRequest, TranscriptCreate
+from app.schemas import ImportVLearnRequest, MessageCreate, ProcessRequest, SessionCreate, SummarizeRequest, TranscriptCreate
 from app.seed_demo import seed_demo
 from app.services.ai import ai_runtime_status
 from app.services.pipeline import add_message, add_transcript, create_session, dashboard, process_session, report
-from app.services.realtime_flow import realtime_demo_state
 from app.services.teacher_flow import create_question_summary, ensure_default_workspace, get_question_summary, list_question_summaries, list_teacher_schedule
-from app.services.video_realtime import add_live_question, analyze_video_with_gemini, save_realtime_video
 from app.services.vlearn_importer import import_vlearn_pack
 
 
@@ -113,49 +111,6 @@ def teacher_summary_endpoint(summary_id: str) -> dict:
         return get_question_summary(summary_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Summary not found") from exc
-
-
-@app.get("/teacher/realtime")
-def teacher_realtime_endpoint(session_id: str = "vlearn-pack", elapsed_sec: int = 0, top_k: int = 8) -> dict:
-    return realtime_demo_state(session_id=session_id, elapsed_sec=elapsed_sec, top_k=top_k)
-
-
-@app.post("/teacher/realtime/video")
-async def teacher_realtime_video_endpoint(
-    file: UploadFile = File(...),
-    session_id: str = Form("realtime-video"),
-    title: str | None = Form(None),
-    analyze: bool = Form(True),
-) -> dict:
-    content = await file.read()
-    video = save_realtime_video(
-        session_id=session_id,
-        file_name=file.filename or "lecture.mp4",
-        content=content,
-        mime_type=file.content_type,
-        title=title,
-    )
-    if not analyze:
-        return {"ok": True, **video, "analysis": None}
-    try:
-        analysis = analyze_video_with_gemini(session_id=session_id, video_id=video["video_id"])
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"ok": True, **video, "analysis": analysis}
-
-
-@app.post("/teacher/realtime/questions")
-def teacher_realtime_question_endpoint(payload: LiveQuestionCreate) -> dict:
-    try:
-        question = add_live_question(
-            session_id=payload.session_id,
-            question=payload.question,
-            time_sec=payload.time_sec,
-            student=payload.student,
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"ok": True, "question": question}
 
 
 @app.get("/sessions/{session_id}/dashboard")
