@@ -1,0 +1,24 @@
+[
+  {"id":"q01","task":"question_detection","input":"LLM có nhớ toàn bộ hội thoại không?","expected":true},
+  {"id":"q02","task":"question_detection","input":"Phần dashboard này nhìn ổn rồi.","expected":false},
+  {"id":"q03","task":"question_detection","input":"Embedding dùng để làm gì?","expected":true},
+  {"id":"q04","task":"question_detection","input":"Tại sao cần cosine similarity","expected":true},
+  {"id":"q05","task":"question_detection","input":"Mình đồng ý với cách dùng SQLite cho demo.","expected":false},
+  {"id":"d01","task":"dedup","left":"LLM có nhớ toàn bộ hội thoại không?","right":"Mô hình có giữ được tất cả context của cuộc trò chuyện không?","expected":true},
+  {"id":"d02","task":"dedup","left":"SQLite có đủ cho CP3 hackathon không?","right":"Có cần vector database thật cho demo không?","expected":true},
+  {"id":"d03","task":"dedup","left":"Embedding dùng để làm gì trong hệ thống này?","right":"Vector embedding có vai trò gì?","expected":true},
+  {"id":"d04","task":"dedup","left":"Report cuối buổi gồm những phần nào?","right":"Frontend gửi chat ra sao?","expected":false},
+  {"id":"d05","task":"dedup","left":"Khi nào cần chuyển sang pgvector?","right":"Bao giờ nên dùng PostgreSQL vector thay SQLite?","expected":true},
+  {"id":"d06","task":"dedup","left":"Làm sao gom câu hỏi cùng nghĩa?","right":"Trạng thái unanswered được xếp hạng thế nào?","expected":false},
+  {"id":"a01","task":"answer_detection","question":"SQLite có đủ cho CP3 hackathon không?","context":"Với CP3, SQLite là đủ vì dữ liệu demo chưa lớn và chỉ chạy một backend instance.","expected":"ANSWERED"},
+  {"id":"a02","task":"answer_detection","question":"Embedding dùng để làm gì?","context":"Embedding biến câu hỏi thành vector số để có thể so sánh ngữ nghĩa.","expected":"ANSWERED"},
+  {"id":"a03","task":"answer_detection","question":"Khi nào chuyển sang pgvector?","context":"Khi dữ liệu lớn hơn, nhiều lớp học và nhiều request đồng thời, chúng ta có thể chuyển sang PostgreSQL với pgvector.","expected":"ANSWERED"},
+  {"id":"a04","task":"answer_detection","question":"Report cuối buổi gồm những phần nào?","context":"Dashboard hiển thị cluster và trạng thái câu hỏi.","expected":"PARTIALLY_ANSWERED"},
+  {"id":"a05","task":"answer_detection","question":"Frontend deploy ở đâu?","context":"Backend lưu message vào SQLite và xử lý transcript.","expected":"UNANSWERED"},
+  {"id":"a06","task":"answer_detection","question":"Cosine similarity hoạt động thế nào?","context":"Backend tính cosine similarity với các câu đại diện trước đó để gom các câu cùng nghĩa vào một cluster.","expected":"ANSWERED"},
+  {"id":"a07","task":"answer_detection","question":"Nếu trả lời một phần thì status là gì?","context":"Nếu chỉ liên quan một phần thì dùng PARTIALLY_ANSWERED.","expected":"ANSWERED"},
+  {"id":"a08","task":"answer_detection","question":"Có cần vector database thật không?","context":"Sau này có thể dùng vector database chuyên dụng.","expected":"PARTIALLY_ANSWERED"},
+  {"id":"a09","task":"answer_detection","question":"Transcript xử lý ra sao?","context":"Transcript của giảng viên được chia thành nhiều chunk nhỏ, mỗi chunk cũng có embedding.","expected":"ANSWERED"},
+  {"id":"a10","task":"answer_detection","question":"Ai là giảng viên buổi này?","context":"Hôm nay chúng ta xây pipeline VLearn Tutor.","expected":"UNANSWERED"}
+]
+
