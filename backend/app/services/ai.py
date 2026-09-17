@@ -307,11 +307,6 @@ def cosine_similarity(left: Iterable[float], right: Iterable[float]) -> float:
     return dot / (left_norm * right_norm)
 
 
-def split_sentences(text: str) -> list[str]:
-    pieces = re.split(r"(?<=[.!?。])\s+|\n+", text.strip())
-    return [piece.strip() for piece in pieces if piece.strip()]
-
-
 def chunk_text(text: str, max_words: int = 80, overlap: int = 16) -> list[str]:
     words = text.split()
     if not words:

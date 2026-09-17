@@ -46,11 +46,3 @@ class SummarizeRequest(BaseModel):
     top_k: int = Field(default=10, ge=3, le=30)
 
 
-class ClusterOut(BaseModel):
-    id: str
-    representative_question: str
-    frequency: int
-    status: str
-    confidence: float
-    askers: list[str]
-    retrieval_context: list[dict]
