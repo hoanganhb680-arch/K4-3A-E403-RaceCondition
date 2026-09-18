@@ -11,34 +11,34 @@ from app.services.vlearn_importer import DEFAULT_SESSION_ID, import_vlearn_pack
 DEFAULT_TEACHER_ID = "teacher"
 DEFAULT_MEETINGS = [
     {
-        "id": "ai-fundamentals-day01",
-        "title": "AI Fundamentals - Day 01: AI/ML/DL",
+        "id": "vlearn-d01",
+        "title": "VLearn D01 - Day01",
         "course_title": "AI Fundamentals",
-        "meeting_date": "2026-09-14",
-        "start_time": "08:00",
-        "end_time": "09:30",
-        "platform": "VLearn Live",
-        "status": "completed",
-    },
-    {
-        "id": DEFAULT_SESSION_ID,
-        "title": "AI Fundamentals - Lecture 03: LLM",
-        "course_title": "AI Fundamentals",
-        "meeting_date": "2026-09-15",
+        "meeting_date": "2026-09-10",
         "start_time": "09:00",
         "end_time": "10:30",
         "platform": "VLearn Live",
         "status": "completed",
     },
     {
-        "id": "ai-fundamentals-day03",
-        "title": "AI Fundamentals - Day 03: RAG & Agents",
+        "id": "vlearn-d02",
+        "title": "VLearn D02 - Object Detection",
         "course_title": "AI Fundamentals",
-        "meeting_date": "2026-09-16",
-        "start_time": "14:00",
-        "end_time": "15:30",
+        "meeting_date": "2026-09-11",
+        "start_time": "09:00",
+        "end_time": "10:30",
         "platform": "VLearn Live",
-        "status": "scheduled",
+        "status": "completed",
+    },
+    {
+        "id": "vlearn-d03",
+        "title": "VLearn D03 - MultiFrame Tracking",
+        "course_title": "AI Fundamentals",
+        "meeting_date": "2026-09-12",
+        "start_time": "09:00",
+        "end_time": "10:30",
+        "platform": "VLearn Live",
+        "status": "completed",
     },
 ]
 
@@ -81,8 +81,8 @@ def list_teacher_schedule() -> dict[str, Any]:
 
 def ensure_default_workspace(
     session_id: str = DEFAULT_SESSION_ID,
-    max_turns: int = 240,
-    transcript_limit: int = 3,
+    max_turns: int = 1200,
+    transcript_limit: int = 6,
     refresh_embeddings: bool = False,
 ) -> dict[str, Any]:
     ensure_schedule()
@@ -93,14 +93,16 @@ def ensure_default_workspace(
         ).fetchone()
         total = int(row["total"]) if row else 0
 
-    if total == 0 and session_id == DEFAULT_SESSION_ID:
+    if total == 0 and session_id.startswith("vlearn-d"):
         import_vlearn_pack(
             session_id=session_id,
             max_turns=max_turns,
             cohort_hint="K4",
             include_presets=False,
             transcript_limit=transcript_limit,
-            process_after_import=True,
+            process_after_import=False,
+            split_by_lecture=True,
+            max_turns_per_lecture=200,
         )
         data = dashboard(session_id)
         data["embedding_refresh"] = {"changed_total": 0, "refreshed": {}}
@@ -175,7 +177,7 @@ def create_question_summary(
 ) -> dict[str, Any]:
     ensure_default_workspace(session_id=session_id, refresh_embeddings=False)
     if _summary_processing_needed(session_id):
-        process_session(session_id, top_k=5)
+        process_session(session_id, top_k=5, max_clusters=max(top_k * 3, 30))
     data = dashboard(session_id)
     ranked_clusters = sorted(
         data["clusters"],

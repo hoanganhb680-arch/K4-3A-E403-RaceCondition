@@ -32,16 +32,18 @@ class ProcessRequest(BaseModel):
 
 class ImportVLearnRequest(BaseModel):
     pack_dir: str | None = None
-    session_id: str = "vlearn-pack"
-    max_turns: int = Field(default=240, ge=10, le=2000)
+    session_id: str = "vlearn-d01"
+    max_turns: int = Field(default=1200, ge=10, le=20000)
     cohort_hint: str = "K4"
     include_presets: bool = False
-    transcript_limit: int = Field(default=3, ge=1, le=6)
+    transcript_limit: int = Field(default=6, ge=1, le=6)
     process_after_import: bool = True
+    split_by_lecture: bool = True
+    max_turns_per_lecture: int = Field(default=200, ge=0, le=20000)
 
 
 class SummarizeRequest(BaseModel):
-    session_id: str = "vlearn-pack"
+    session_id: str = "vlearn-d01"
     teacher_id: str = "teacher"
     top_k: int = Field(default=10, ge=3, le=30)
 

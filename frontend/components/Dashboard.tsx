@@ -21,7 +21,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-const DEFAULT_SESSION_ID = "vlearn-pack";
+const DEFAULT_SESSION_ID = "vlearn-d01";
 
 type Meeting = {
   id: string;
@@ -455,7 +455,7 @@ export default function Dashboard() {
                 <span className="liveBadge">{selectedMeeting?.status === "completed" ? "ĐÃ DIỄN RA" : "MEETING"}</span>
               </div>
               <div className="messageList">
-                {messages.slice(-30).map((item) => (
+                {messages.map((item) => (
                   <div className={`messageItem ${item.role}`} key={item.id}>
                     <span>{item.display_name.slice(0, 1).toUpperCase()}</span>
                     <div>

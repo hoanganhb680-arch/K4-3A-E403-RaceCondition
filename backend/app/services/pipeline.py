@@ -104,10 +104,12 @@ def add_message(
     rating: str | None = None,
     move_used: str | None = None,
     source_type: str = "live_chat",
+    embedding_vector: list[float] | None = None,
+    question_embedding_vector: list[float] | None = None,
 ) -> dict[str, Any]:
     clean_role = role if role in {"student", "teacher", "assistant"} else "student"
-    question_flag = clean_role == "student" and is_question(content)
-    message_vector = embedding(content)
+    question_flag = clean_role == "student" and (source_type == "vlearn_student_question" or is_question(content))
+    message_vector = embedding_vector or embedding(content)
     message_id = new_id("msg")
     with get_conn() as conn:
         conn.execute(
@@ -138,7 +140,7 @@ def add_message(
             ),
         )
     if question_flag:
-        upsert_question(session_id, message_id, content)
+        upsert_question(session_id, message_id, content, question_embedding_vector)
     return {
         "id": message_id,
         "session_id": session_id,
@@ -158,9 +160,14 @@ def add_message(
     }
 
 
-def upsert_question(session_id: str, message_id: str, text: str) -> dict[str, Any]:
+def upsert_question(
+    session_id: str,
+    message_id: str,
+    text: str,
+    question_vector: list[float] | None = None,
+) -> dict[str, Any]:
     question_text = canonical_question_text(text)
-    vector = embedding(question_text)
+    vector = question_vector or embedding(question_text)
     cluster_id = None
     best_similarity = 0.0
     with get_conn() as conn:
@@ -292,18 +299,24 @@ def _can_merge_questions(left: str, right: str) -> bool:
     return True
 
 
-def add_transcript(session_id: str, source: str, text: str) -> dict[str, Any]:
+def add_transcript(
+    session_id: str,
+    source: str,
+    text: str,
+    chunk_vectors: list[list[float]] | None = None,
+) -> dict[str, Any]:
     chunks = chunk_text(text, max_words=58, overlap=10)
+    vectors = chunk_vectors or embedding_many(chunks)
     with get_conn() as conn:
         conn.execute("DELETE FROM transcript_chunks WHERE session_id = ? AND source = ?", (session_id, source))
-        for index, chunk in enumerate(chunks):
+        for index, (chunk, vector) in enumerate(zip(chunks, vectors)):
             conn.execute(
                 """
                 INSERT INTO transcript_chunks
                 (id, session_id, source, chunk_index, text, embedding, transcript_order, source_type)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'lecture_transcript')
                 """,
-                (new_id("chunk"), session_id, source, index, chunk, encode_vector(embedding(chunk)), index),
+                (new_id("chunk"), session_id, source, index, chunk, encode_vector(vector), index),
             )
     return {"session_id": session_id, "source": source, "chunks": len(chunks)}
 
@@ -599,12 +612,26 @@ def _cluster_count(session_id: str) -> int:
     return int(row["total"]) if row else 0
 
 
-def process_session(session_id: str, top_k: int = 5) -> list[dict[str, Any]]:
+def process_session(session_id: str, top_k: int = 5, max_clusters: int | None = None) -> list[dict[str, Any]]:
     _refresh_cluster_representatives(session_id)
+    limit_clause = "LIMIT ?" if max_clusters else ""
+    params: tuple[Any, ...] = (session_id, max_clusters) if max_clusters else (session_id,)
     with get_conn() as conn:
         clusters = conn.execute(
-            "SELECT * FROM question_clusters WHERE session_id = ?",
-            (session_id,),
+            f"""
+            SELECT * FROM question_clusters
+            WHERE session_id = ?
+            ORDER BY
+              CASE
+                WHEN retrieval_context = '[]' OR attention_reason = '' THEN 0
+                ELSE 1
+              END,
+              frequency DESC,
+              priority_score DESC,
+              rowid ASC
+            {limit_clause}
+            """,
+            params,
         ).fetchall()
 
     details = _question_details(session_id)

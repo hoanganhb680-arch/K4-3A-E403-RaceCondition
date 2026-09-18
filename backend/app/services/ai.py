@@ -115,7 +115,11 @@ def _env_int(name: str, default: int) -> int:
 
 
 def llm_enabled() -> bool:
-    return _env_bool("USE_LLM", "true") and bool(_api_key())
+    return _env_bool("USE_LLM", "false") and bool(_api_key())
+
+
+def embedding_model_enabled() -> bool:
+    return _env_bool("USE_MODEL_EMBEDDINGS", "true") and bool(_api_key())
 
 
 def ai_runtime_status() -> dict[str, Any]:
@@ -125,9 +129,11 @@ def ai_runtime_status() -> dict[str, Any]:
         "base_url": _base_url(),
         "chat_model": _chat_model(),
         "embedding_model": _embedding_model(),
+        "embedding_mode": "model" if embedding_model_enabled() else "local_fallback",
         "has_api_key": bool(_api_key()),
         "has_gemini_api_key": bool(os.getenv("GEMINI_API_KEY")),
-        "use_llm": _env_bool("USE_LLM", "true"),
+        "use_llm": _env_bool("USE_LLM", "false"),
+        "use_model_embeddings": _env_bool("USE_MODEL_EMBEDDINGS", "true"),
     }
 
 
@@ -274,7 +280,7 @@ def _safe_model_embeddings(texts: list[str], dims: int) -> list[list[float]]:
 
 
 def embedding(text: str, dims: int = 128) -> list[float]:
-    if llm_enabled():
+    if embedding_model_enabled():
         try:
             return _model_embedding(text)
         except Exception:
@@ -285,7 +291,7 @@ def embedding(text: str, dims: int = 128) -> list[float]:
 def embedding_many(texts: list[str], dims: int = 128, batch_size: int | None = None) -> list[list[float]]:
     if not texts:
         return []
-    if not llm_enabled():
+    if not embedding_model_enabled():
         return [_local_embedding(text, dims) for text in texts]
 
     batch_size = batch_size or _env_int("GEMINI_EMBEDDING_BATCH_SIZE", 250)

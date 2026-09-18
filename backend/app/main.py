@@ -82,11 +82,13 @@ def import_vlearn_endpoint(payload: ImportVLearnRequest) -> dict:
         include_presets=payload.include_presets,
         transcript_limit=payload.transcript_limit,
         process_after_import=payload.process_after_import,
+        split_by_lecture=payload.split_by_lecture,
+        max_turns_per_lecture=payload.max_turns_per_lecture,
     )
 
 
 @app.get("/teacher/workspace")
-def teacher_workspace_endpoint(session_id: str = "vlearn-pack") -> dict:
+def teacher_workspace_endpoint(session_id: str = "vlearn-d01") -> dict:
     return ensure_default_workspace(session_id=session_id)
 
 
