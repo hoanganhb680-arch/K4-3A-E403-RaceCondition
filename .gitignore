@@ -1,0 +1,36 @@
+.pnpm-store/
+
+# Local/private data and generated stores
+backend/data/
+data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+
+backend/.venv/
+backend/__pycache__/
+backend/app/__pycache__/
+backend/app/services/__pycache__/
+backend/scripts/__pycache__/
+backend/vlearn_tutor.db
+backend/vlearn_tutor.db-*
+
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/tsconfig.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+# Local recordings/screenshots
+obs-screen.png
+video_frames/
+video_frames_full/
+*.mp4
+*.webm
+*.mov
+
