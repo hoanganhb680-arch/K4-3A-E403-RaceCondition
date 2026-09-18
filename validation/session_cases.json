@@ -1,0 +1,148 @@
+[
+  {
+    "id": "s01",
+    "description": "Nhóm câu hỏi về context window / token limit - hỏi lặp nhiều lần",
+    "cluster_representative": "Context window là bao nhiêu token vậy?",
+    "questions": [
+      {"text": "Context window là bao nhiêu token vậy?", "student": "sv01", "reply_ms": 4200, "rating": null},
+      {"text": "Token limit vượt thì sao ạ?", "student": "sv02", "reply_ms": 3800, "rating": null},
+      {"text": "LLM giới hạn token là bao nhiêu?", "student": "sv03", "reply_ms": null, "rating": "down"},
+      {"text": "Mô hình xử lý được bao nhiêu từ một lúc?", "student": "sv04", "reply_ms": 5100, "rating": null}
+    ],
+    "tutor_reply": "Context window của các mô hình lớn hiện tại dao động từ 8k đến 1M token tùy loại.",
+    "frequency": 4,
+    "has_confusion_signal": true,
+    "expected_status": "NEEDS_TEACHER_REVIEW",
+    "teacher_label": "đáng_xem"
+  },
+  {
+    "id": "s02",
+    "description": "Nhóm câu hỏi về RAG và fine-tuning - học viên chưa phân biệt được",
+    "cluster_representative": "RAG có cần fine-tuning không?",
+    "questions": [
+      {"text": "RAG có cần fine-tuning không?", "student": "sv05", "reply_ms": 2100, "rating": null},
+      {"text": "Khi nào dùng RAG, khi nào dùng fine-tuning?", "student": "sv06", "reply_ms": 6500, "rating": "down"},
+      {"text": "Fine-tune model hay dùng RAG cho bài toán này?", "student": "sv01", "reply_ms": null, "rating": null}
+    ],
+    "tutor_reply": "RAG và fine-tuning giải quyết vấn đề khác nhau; RAG bổ sung kiến thức mới, fine-tuning thay đổi hành vi mô hình.",
+    "frequency": 3,
+    "has_confusion_signal": true,
+    "expected_status": "NEEDS_TEACHER_REVIEW",
+    "teacher_label": "đáng_xem"
+  },
+  {
+    "id": "s03",
+    "description": "Nhóm câu hỏi về chi phí API - hỏi lặp nhưng AI đã trả lời đủ",
+    "cluster_representative": "Có cách nào giảm chi phí khi dùng OpenAI API không?",
+    "questions": [
+      {"text": "Có cách nào giảm chi phí khi dùng OpenAI API không?", "student": "sv02", "reply_ms": 1200, "rating": null},
+      {"text": "Dùng GPT-4 tốn bao nhiêu tiền mỗi request?", "student": "sv07", "reply_ms": 900, "rating": null}
+    ],
+    "tutor_reply": "Có thể giảm chi phí bằng cách dùng model nhỏ hơn, cache prompt, giảm số token đầu vào và batching request.",
+    "frequency": 2,
+    "has_confusion_signal": false,
+    "expected_status": "AI_TUTOR_HANDLED",
+    "teacher_label": "không_cần"
+  },
+  {
+    "id": "s04",
+    "description": "Nhóm câu hỏi về embedding - hỏi nhiều, reply chậm",
+    "cluster_representative": "Embedding dùng để làm gì trong hệ thống này?",
+    "questions": [
+      {"text": "Embedding dùng để làm gì trong hệ thống này?", "student": "sv03", "reply_ms": 8900, "rating": null},
+      {"text": "Vector embedding có vai trò gì?", "student": "sv08", "reply_ms": 7200, "rating": null},
+      {"text": "Tại sao phải chuyển câu hỏi thành vector?", "student": "sv04", "reply_ms": null, "rating": "down"}
+    ],
+    "tutor_reply": "Embedding biến câu hỏi thành vector số để có thể so sánh ngữ nghĩa bằng cosine similarity.",
+    "frequency": 3,
+    "has_confusion_signal": true,
+    "expected_status": "NEEDS_TEACHER_REVIEW",
+    "teacher_label": "đáng_xem"
+  },
+  {
+    "id": "s05",
+    "description": "Nhóm câu hỏi về prompt engineering - có tài liệu tham khảo",
+    "cluster_representative": "Prompt engineering có tài liệu nào hay không ạ?",
+    "questions": [
+      {"text": "Prompt engineering có tài liệu nào hay không ạ?", "student": "sv09", "reply_ms": 1500, "rating": null},
+      {"text": "Học prompt engineering ở đâu?", "student": "sv05", "reply_ms": 2200, "rating": null}
+    ],
+    "tutor_reply": "Có thể tham khảo Prompt Engineering Guide tại promptingguide.ai và tài liệu chính thức của OpenAI.",
+    "frequency": 2,
+    "has_confusion_signal": false,
+    "expected_status": "AI_TUTOR_HANDLED",
+    "teacher_label": "không_cần"
+  },
+  {
+    "id": "s06",
+    "description": "Nhóm câu hỏi về LLM memory - hỏi lặp, AI trả lời nhưng vẫn confusion",
+    "cluster_representative": "LLM có nhớ toàn bộ hội thoại không?",
+    "questions": [
+      {"text": "LLM có nhớ toàn bộ hội thoại không?", "student": "sv06", "reply_ms": 3300, "rating": "down"},
+      {"text": "Mô hình có giữ được tất cả context của cuộc trò chuyện không?", "student": "sv10", "reply_ms": 4100, "rating": null},
+      {"text": "Model có memory không hay mỗi lần hỏi là mới?", "student": "sv01", "reply_ms": null, "rating": "down"},
+      {"text": "Session context có bị xóa sau khi đóng tab không?", "student": "sv03", "reply_ms": 5600, "rating": null}
+    ],
+    "tutor_reply": "LLM không có memory tự nhiên; mỗi request độc lập, cần truyền lịch sử hội thoại vào prompt để duy trì context.",
+    "frequency": 4,
+    "has_confusion_signal": true,
+    "expected_status": "NEEDS_TEACHER_REVIEW",
+    "teacher_label": "đáng_xem"
+  },
+  {
+    "id": "s07",
+    "description": "Câu hỏi đơn lẻ về deploy frontend - chưa có câu trả lời rõ",
+    "cluster_representative": "Frontend deploy ở đâu?",
+    "questions": [
+      {"text": "Frontend deploy ở đâu?", "student": "sv07", "reply_ms": null, "rating": null}
+    ],
+    "tutor_reply": "",
+    "frequency": 1,
+    "has_confusion_signal": false,
+    "expected_status": "NEEDS_TEACHER_REVIEW",
+    "teacher_label": "đáng_xem"
+  },
+  {
+    "id": "s08",
+    "description": "Nhóm câu hỏi về cosine similarity - khái niệm kỹ thuật, hỏi lặp",
+    "cluster_representative": "Cosine similarity hoạt động thế nào?",
+    "questions": [
+      {"text": "Cosine similarity hoạt động thế nào?", "student": "sv08", "reply_ms": 2000, "rating": null},
+      {"text": "Tại sao cần cosine similarity?", "student": "sv02", "reply_ms": 1800, "rating": null},
+      {"text": "Công thức cosine similarity là gì?", "student": "sv09", "reply_ms": null, "rating": null}
+    ],
+    "tutor_reply": "Cosine similarity đo góc giữa hai vector; giá trị từ -1 đến 1, càng gần 1 nghĩa là hai vector càng giống nhau về hướng.",
+    "frequency": 3,
+    "has_confusion_signal": false,
+    "expected_status": "MONITOR",
+    "teacher_label": "đáng_xem"
+  },
+  {
+    "id": "s09",
+    "description": "Câu hỏi về SQLite vs pgvector - hỏi một lần, AI trả lời đủ",
+    "cluster_representative": "SQLite có đủ cho CP3 hackathon không?",
+    "questions": [
+      {"text": "SQLite có đủ cho CP3 hackathon không?", "student": "sv10", "reply_ms": 1100, "rating": null}
+    ],
+    "tutor_reply": "Với CP3, SQLite là đủ vì dữ liệu demo chưa lớn và chỉ chạy một backend instance.",
+    "frequency": 1,
+    "has_confusion_signal": false,
+    "expected_status": "AI_TUTOR_HANDLED",
+    "teacher_label": "không_cần"
+  },
+  {
+    "id": "s10",
+    "description": "Nhóm câu hỏi về agent / agentic AI - chủ đề nâng cao, nhiều người hỏi",
+    "cluster_representative": "Agent trong AI là gì?",
+    "questions": [
+      {"text": "Agent trong AI là gì?", "student": "sv04", "reply_ms": 6800, "rating": null},
+      {"text": "Agentic AI khác gì LLM thường?", "student": "sv06", "reply_ms": 7500, "rating": "down"},
+      {"text": "Tool calling hoạt động ra sao?", "student": "sv11", "reply_ms": null, "rating": null}
+    ],
+    "tutor_reply": "Agent là hệ thống LLM có khả năng lên kế hoạch và gọi tool để thực hiện nhiệm vụ nhiều bước.",
+    "frequency": 3,
+    "has_confusion_signal": true,
+    "expected_status": "NEEDS_TEACHER_REVIEW",
+    "teacher_label": "đáng_xem"
+  }
+]
